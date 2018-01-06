@@ -368,6 +368,18 @@ static void clear_configuration(struct libusb_config_descriptor *config)
 	free((void *) config->extra);
 }
 
+static int parse_iad(struct libusb_context *ctx,
+	struct libusb_iad_descriptor *iad, unsigned char *buffer,
+	int size, int host_endian)
+{
+	if (size <= 8) {
+		usbi_err(ctx, "ias descriptor size %d expected 8", size);
+		return LIBUSB_ERROR_IO;
+	}
+	usbi_parse_descriptor(buffer, "bbbbbbbb", iad, host_endian);
+	return 8;
+}
+
 static int parse_configuration(struct libusb_context *ctx,
 	struct libusb_config_descriptor *config, unsigned char *buffer,
 	int size, int host_endian)
@@ -413,6 +425,16 @@ static int parse_configuration(struct libusb_context *ctx,
 
 	config->extra = NULL;
 	config->extra_length = 0;
+
+	memset(&config->iad, 0, sizeof(config->iad));
+	if (size >= DESC_HEADER_LENGTH) {
+		usbi_parse_descriptor(buffer, "bb", &header, 0);
+		if (header.bDescriptorType == LIBUSB_DT_IAD) {
+			parse_iad(ctx, &config->iad, buffer, size, host_endian);
+			buffer += header.bLength;
+			size -= header.bLength;
+		}
+	}
 
 	for (i = 0; i < config->bNumInterfaces; i++) {
 		int len;
