@@ -269,6 +269,9 @@ enum libusb_descriptor_type {
 	/** Endpoint descriptor. See libusb_endpoint_descriptor. */
 	LIBUSB_DT_ENDPOINT = 0x05,
 
+	/** Interface Association Descriptor. */
+	LIBUSB_DT_IAD = 0x0b,
+
 	/** BOS descriptor */
 	LIBUSB_DT_BOS = 0x0f,
 
@@ -644,6 +647,17 @@ struct libusb_interface {
 	int num_altsetting;
 };
 
+struct libusb_iad_descriptor {
+	uint8_t  bLength;
+	uint8_t  bDescriptorType;
+	uint8_t  bFirstInterface;
+	uint8_t  bInterfaceCount;
+	uint8_t  bFunctionClass;
+	uint8_t  bFunctionSubClass;
+	uint8_t  bFunctionProtocol;
+	uint8_t  iFunction;
+}; // add to configuration
+
 /** \ingroup libusb_desc
  * A structure representing the standard USB configuration descriptor. This
  * descriptor is documented in section 9.6.3 of the USB 3.0 specification.
@@ -689,6 +703,8 @@ struct libusb_config_descriptor {
 
 	/** Length of the extra descriptors, in bytes. Must be non-negative. */
 	int extra_length;
+
+	struct libusb_iad_descriptor iad;
 };
 
 /** \ingroup libusb_desc
