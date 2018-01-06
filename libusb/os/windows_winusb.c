@@ -498,6 +498,9 @@ static int windows_assign_endpoints(struct libusb_device_handle *dev_handle, int
 	struct libusb_config_descriptor *conf_desc;
 	const struct libusb_interface_descriptor *if_desc;
 	struct libusb_context *ctx = DEVICE_CTX(dev_handle->dev);
+	int8_t num_endpoints;
+	int first_iface = iface;
+	int last_iface = iface;
 
 	r = libusb_get_active_config_descriptor(dev_handle->dev, &conf_desc);
 	if (r != LIBUSB_SUCCESS) {
@@ -515,16 +518,36 @@ static int windows_assign_endpoints(struct libusb_device_handle *dev_handle, int
 		return LIBUSB_SUCCESS;
 	}
 
-	priv->usb_interface[iface].endpoint = malloc(if_desc->bNumEndpoints);
+	/* check if there is an IAD that is grouping multiple logical interfaces
+	   together and if this interface is the one that is of interest */
+	num_endpoints = if_desc->bNumEndpoints;
+	if (conf_desc->iad.bLength)
+	{
+		if (iface >= conf_desc->iad.bFirstInterface && iface < (conf_desc->iad.bFirstInterface + conf_desc->iad.bInterfaceCount)) {
+			first_iface = conf_desc->iad.bFirstInterface;
+			last_iface = first_iface + conf_desc->iad.bInterfaceCount-1;
+			usbi_dbg("found IAD grouping for interface %d", iface);
+		}
+		num_endpoints = 0;
+		for (int temp_iface = first_iface; temp_iface <= last_iface; ++temp_iface) {
+			num_endpoints += conf_desc->interface[temp_iface].altsetting[altsetting].bNumEndpoints;
+		}
+		if (first_iface != last_iface)
+			usbi_dbg("IAD interface mapped to %d, numendpoints = %d", first_iface, num_endpoints);
+	}
+	priv->usb_interface[iface].endpoint = malloc(num_endpoints);
 	if (priv->usb_interface[iface].endpoint == NULL) {
 		libusb_free_config_descriptor(conf_desc);
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
-	priv->usb_interface[iface].nb_endpoints = if_desc->bNumEndpoints;
-	for (i = 0; i < if_desc->bNumEndpoints; i++) {
-		priv->usb_interface[iface].endpoint[i] = if_desc->endpoint[i].bEndpointAddress;
-		usbi_dbg("(re)assigned endpoint %02X to interface %d", priv->usb_interface[iface].endpoint[i], iface);
+	priv->usb_interface[iface].nb_endpoints = num_endpoints;
+
+	for (int temp_iface = first_iface, j = 0; temp_iface <= last_iface; ++temp_iface) {
+		for (i = 0; i < conf_desc->interface[temp_iface].altsetting[altsetting].bNumEndpoints; i++, j++) {
+			priv->usb_interface[iface].endpoint[j] = conf_desc->interface[temp_iface].altsetting[altsetting].endpoint[i].bEndpointAddress;
+			usbi_dbg("(re)assigned endpoint %02X to interface %d", priv->usb_interface[iface].endpoint[j], iface);
+		}
 	}
 	libusb_free_config_descriptor(conf_desc);
 
