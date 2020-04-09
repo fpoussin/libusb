@@ -19,14 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <config.h>
-
-#include <errno.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "libusbi.h"
+
+#include <string.h>
 
 #define DESC_HEADER_LENGTH		2
 #define DEVICE_DESC_LENGTH		18
@@ -565,7 +560,7 @@ int usbi_device_cache_descriptor(libusb_device *dev)
 int API_EXPORTED libusb_get_device_descriptor(libusb_device *dev,
 	struct libusb_device_descriptor *desc)
 {
-	usbi_dbg("");
+	usbi_dbg(" ");
 	memcpy((unsigned char *) desc, (unsigned char *) &dev->device_descriptor,
 	       sizeof (dev->device_descriptor));
 	return 0;
@@ -644,7 +639,7 @@ int API_EXPORTED libusb_get_config_descriptor(libusb_device *dev,
 	int r;
 
 	usbi_dbg("index %d", config_index);
-	if (config_index >= dev->num_configurations)
+	if (config_index >= dev->device_descriptor.bNumConfigurations)
 		return LIBUSB_ERROR_NOT_FOUND;
 
 	r = usbi_backend.get_config_descriptor(dev, config_index, tmp,
@@ -682,7 +677,7 @@ int usbi_get_config_index_by_value(struct libusb_device *dev,
 	uint8_t i;
 
 	usbi_dbg("value %d", bConfigurationValue);
-	for (i = 0; i < dev->num_configurations; i++) {
+	for (i = 0; i < dev->device_descriptor.bNumConfigurations; i++) {
 		unsigned char tmp[6];
 		int host_endian;
 		int r = usbi_backend.get_config_descriptor(dev, i, tmp, sizeof(tmp),
